@@ -27,6 +27,9 @@ jobs:
       - name: Run floorsheet scraper
         run: python nepsealpha_floorsheet.py
 
+      - name: Run Broker 58 analysis
+        run: python broker58_analysis.py
+
       - name: Run master report scraper
         run: python nepse_scraper.py
 
