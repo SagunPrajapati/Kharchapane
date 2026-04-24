@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-NepseAlpha Floorsheet Scraper
-==============================
-Scrapes all floorsheet transactions from:
-  https://nepsealpha.com/floorsheet-live-today
+NEPSE Floorsheet Scraper — Official API
+=========================================
+Uses nepalstock.com official API (no Cloudflare block).
+Works reliably from GitHub Actions servers.
 
-Uses requests with browser-like headers - no browser needed.
+API: https://nepalstock.com/api/nots/nepse-data/floorsheet
 
 Output:
   output/floorsheet_YYYY-MM-DD.json
@@ -18,81 +18,86 @@ from zoneinfo import ZoneInfo
 from collections import defaultdict
 
 NPT        = ZoneInfo("Asia/Kathmandu")
-BASE_URL   = "https://nepsealpha.com/floorsheet-live-today/filter"
-PAGE_URL   = "https://nepsealpha.com/floorsheet-live-today"
+BASE_URL   = "https://nepalstock.com/api/nots/nepse-data/floorsheet"
 ITEMS_PAGE = 500
-DELAY      = 0.4
+DELAY      = 0.5
 OUTPUT_DIR = "output"
 
 HEADERS = {
-    "User-Agent":       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/124.0.0.0 Safari/537.36",
-    "Accept":           "application/json, text/plain, */*",
-    "Accept-Language":  "en-US,en;q=0.9",
-    "Referer":          "https://nepsealpha.com/floorsheet-live-today",
-    "X-Requested-With": "XMLHttpRequest",
-    "Connection":       "keep-alive",
+    "User-Agent":    "Mozilla/5.0 (compatible; NEPSE-Bot/1.0)",
+    "Accept":        "application/json",
+    "Referer":       "https://nepalstock.com/floor-sheet",
+    "Origin":        "https://nepalstock.com",
 }
 
-def fetch_all(symbol=None):
-    session = requests.Session()
-    print("  Getting session cookies...")
-    session.get(PAGE_URL, headers={**HEADERS, "Accept": "text/html"}, timeout=20)
-    time.sleep(1)
 
-    all_rows, summary, as_of, last_pg = [], {}, "", 1
-    page = 1
+def fetch_all(date_str=None):
+    all_rows, summary, as_of = [], {}, ""
+    page, last_pg = 0, 1
 
-    while True:
-        params = {"itemsPerPage": ITEMS_PAGE, "page": page}
-        if symbol:
-            params["symbol"] = symbol.upper()
-
-        print(f"  Fetching page {page}/{last_pg}...", end="\r")
-        r = session.get(BASE_URL, params=params, headers=HEADERS, timeout=30)
+    while page < last_pg:
+        params = {
+            "size":        ITEMS_PAGE,
+            "page":        page,
+            "startDate":   date_str or datetime.now(NPT).strftime("%Y-%m-%d"),
+            "endDate":     date_str or datetime.now(NPT).strftime("%Y-%m-%d"),
+            "businessDate": date_str or datetime.now(NPT).strftime("%Y-%m-%d"),
+        }
+        print(f"  Fetching page {page+1}/{last_pg}...", end="\r")
+        r = requests.get(BASE_URL, params=params, headers=HEADERS, timeout=30)
 
         if r.status_code != 200:
-            print(f"\n  Status {r.status_code} on page {page}, stopping.")
+            print(f"\n  Status {r.status_code}, stopping.")
             break
 
         try:
             data = r.json()
         except Exception as e:
-            print(f"\n  Non-JSON response on page {page}: {e}, stopping.")
+            print(f"\n  Parse error: {e}")
             break
 
-        if page == 1:
-            summary = data.get("summary", {})
-            as_of   = data.get("asOf", "")
-            last_pg = int(data["data"].get("last_page") or 1)
-            total   = data["data"].get("total", "?")
-            print(f"\n  Total rows: {total}  |  Pages: {last_pg}  |  As of: {as_of}")
+        if page == 0:
+            total    = data.get("totalCount", 0)
+            last_pg  = max(1, (int(total) + ITEMS_PAGE - 1) // ITEMS_PAGE) if total else 1
+            as_of    = data.get("asOf") or data.get("businessDate") or date_str or ""
+            summary  = {
+                "total":          int(total),
+                "totalquantity":  data.get("totalTradedQuantity", 0),
+                "totalamount":    data.get("totalTradedValue", 0),
+            }
+            print(f"\n  Total: {total} rows | Pages: {last_pg} | As of: {as_of}")
 
-        rows = data["data"].get("data", [])
+        rows = data.get("floorsheets", {}).get("content", []) or data.get("content", []) or []
+
+        # try alternate paths
         if not rows:
+            rows = data.get("data", []) or data.get("floorSheet", []) or []
+
+        if not rows:
+            print(f"\n  No rows in page {page+1}, stopping.")
             break
 
         all_rows.extend(rows)
-        if page >= last_pg:
-            break
-
         page += 1
-        time.sleep(DELAY)
+        if page < last_pg:
+            time.sleep(DELAY)
 
     print(f"\n  Fetched {len(all_rows):,} rows total")
     return all_rows, summary, as_of
 
+
 def normalize(row):
+    # Official API field names
     return {
-        "contract_no":   row.get("cn", ""),
-        "symbol":        row.get("smb", ""),
-        "buyer_broker":  str(row.get("bb", "")),
-        "seller_broker": str(row.get("sb", "")),
-        "quantity":      int(float(row.get("qnt", 0))),
-        "rate":          float(row.get("rt", 0)),
-        "amount":        float(row.get("am", 0)),
+        "contract_no":   str(row.get("contractId") or row.get("contractNo") or ""),
+        "symbol":        str(row.get("stockSymbol") or row.get("symbol") or ""),
+        "buyer_broker":  str(row.get("buyerMemberId") or row.get("buyerBroker") or ""),
+        "seller_broker": str(row.get("sellerMemberId") or row.get("sellerBroker") or ""),
+        "quantity":      int(row.get("contractQuantity") or row.get("quantity") or 0),
+        "rate":          float(row.get("contractRate") or row.get("rate") or 0),
+        "amount":        float(row.get("contractAmount") or row.get("amount") or 0),
     }
+
 
 def symbol_summary(rows):
     stats = defaultdict(lambda: {"transactions":0,"total_quantity":0,"total_amount":0.0,
@@ -100,6 +105,7 @@ def symbol_summary(rows):
                                   "unique_buyers":set(),"unique_sellers":set()})
     for r in rows:
         s = r["symbol"]
+        if not s: continue
         stats[s]["transactions"]   += 1
         stats[s]["total_quantity"] += r["quantity"]
         stats[s]["total_amount"]   += r["amount"]
@@ -120,6 +126,7 @@ def symbol_summary(rows):
         }
     return result
 
+
 def broker_summary(rows):
     buy  = defaultdict(lambda: {"transactions":0,"quantity":0,"amount":0.0})
     sell = defaultdict(lambda: {"transactions":0,"quantity":0,"amount":0.0})
@@ -135,37 +142,52 @@ def broker_summary(rows):
         bd = buy.get(b,  {"transactions":0,"quantity":0,"amount":0.0})
         sd = sell.get(b, {"transactions":0,"quantity":0,"amount":0.0})
         result[str(b)] = {
-            "buy_amount":  round(bd["amount"], 2),
-            "sell_amount": round(sd["amount"], 2),
-            "net_amount":  round(bd["amount"] - sd["amount"], 2),
+            "buy_transactions":  bd["transactions"],
+            "buy_quantity":      bd["quantity"],
+            "buy_amount":        round(bd["amount"], 2),
+            "sell_transactions": sd["transactions"],
+            "sell_quantity":     sd["quantity"],
+            "sell_amount":       round(sd["amount"], 2),
+            "net_amount":        round(bd["amount"] - sd["amount"], 2),
         }
     return result
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--date",   "-d", default=None)
-    parser.add_argument("--symbol", "-s", default=None)
     parser.add_argument("--output", "-o", default=OUTPUT_DIR)
     parser.add_argument("--no-csv", action="store_true")
     args = parser.parse_args()
 
-    today      = args.date or datetime.now(NPT).strftime("%Y-%m-%d")
-    sym_suffix = f"_{args.symbol.upper()}" if args.symbol else ""
+    today = args.date or datetime.now(NPT).strftime("%Y-%m-%d")
+    print(f"\nNEPSE Floorsheet Scraper (Official API) -- {today}\n")
 
-    print(f"NepseAlpha Floorsheet Scraper — {today}")
+    rows_raw, summary, as_of = fetch_all(today)
 
-    rows_raw, summary, as_of = fetch_all(args.symbol)
+    if not rows_raw:
+        print("  No data fetched. Market may be closed or date has no data.")
+        # Save empty file so workflow doesnt fail
+        os.makedirs(args.output, exist_ok=True)
+        base = os.path.join(args.output, f"floorsheet_{today}.json")
+        with open(base, "w") as f:
+            json.dump({"date": today, "as_of": "", "scraped_at": datetime.now(NPT).isoformat(),
+                       "source": "nepalstock.com", "market_summary": {"total_transactions":0,"total_quantity":0,"total_amount":"0"},
+                       "symbol_summary":{}, "broker_summary":{}, "transactions":[]}, f, indent=2)
+        print(f"  Saved empty file: {base}")
+        return
+
     rows = [normalize(r) for r in rows_raw]
 
     output = {
         "date":       today,
         "as_of":      as_of,
         "scraped_at": datetime.now(NPT).isoformat(),
-        "source":     "nepsealpha.com/floorsheet-live-today",
+        "source":     "nepalstock.com (official API)",
         "market_summary": {
             "total_transactions": int(summary.get("total", len(rows))),
             "total_quantity":     int(float(summary.get("totalquantity", 0))),
-            "total_amount":       summary.get("totalamount", "0"),
+            "total_amount":       str(summary.get("totalamount", "0")),
         },
         "symbol_summary": symbol_summary(rows),
         "broker_summary": broker_summary(rows),
@@ -173,16 +195,25 @@ def main():
     }
 
     os.makedirs(args.output, exist_ok=True)
-    base = os.path.join(args.output, f"floorsheet_{today}{sym_suffix}")
-    with open(base + ".json", "w", encoding="utf-8") as f:
+    base = os.path.join(args.output, f"floorsheet_{today}.json")
+
+    with open(base + ".json" if not base.endswith(".json") else base, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
-    print(f"Saved JSON: {base}.json  ({os.path.getsize(base+'.json')//1024} KB)")
+    sz = os.path.getsize(base if base.endswith(".json") else base+".json")
+    print(f"  Saved JSON: {base}  ({sz//1024} KB)")
 
     if not args.no_csv and rows:
-        with open(base + ".csv", "w", newline="", encoding="utf-8") as f:
+        csv_path = base.replace(".json", ".csv")
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=rows[0].keys())
             w.writeheader(); w.writerows(rows)
-        print(f"Saved CSV: {base}.csv")
+        print(f"  Saved CSV:  {csv_path}")
+
+    print(f"\n  Total trades : {output['market_summary']['total_transactions']:,}")
+    s58 = output["broker_summary"].get("58", {})
+    if s58:
+        print(f"  Broker 58    : Buy Rs.{s58['buy_amount']:,.0f} | Sell Rs.{s58['sell_amount']:,.0f} | Net Rs.{s58['net_amount']:,.0f}")
+
 
 if __name__ == "__main__":
     main()
