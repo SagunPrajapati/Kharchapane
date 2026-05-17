@@ -2,19 +2,41 @@
 // KharchaPane - Auth
 // ============================================
 
-// Redirect if already logged in
+// Get the base path dynamically (works on GitHub Pages and locally)
+const BASE_PATH = window.location.pathname.replace('/index.html', '').replace(/\/$/, '');
+const DASHBOARD_URL = BASE_PATH + '/pages/dashboard.html';
+
+// Handle email confirmation tokens in URL hash
 (async () => {
+  const hash = window.location.hash;
+  if (hash && hash.includes('access_token')) {
+    // Exchange the token from the URL
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (data.session) {
+      window.location.href = DASHBOARD_URL;
+      return;
+    }
+  }
+
+  // Redirect if already logged in
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
-    window.location.href = 'pages/dashboard.html';
+    window.location.href = DASHBOARD_URL;
   }
 })();
+
+// Listen for auth state changes (catches email confirmation)
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    window.location.href = DASHBOARD_URL;
+  }
+});
 
 // Google Sign In
 document.getElementById('google-signin')?.addEventListener('click', async () => {
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.origin + '/pages/dashboard.html' }
+    options: { redirectTo: window.location.href.replace('index.html','').replace(/\/$/, '') + '/pages/dashboard.html' }
   });
   if (error) showError('login-error', error.message);
 });
@@ -22,7 +44,7 @@ document.getElementById('google-signin')?.addEventListener('click', async () => 
 document.getElementById('google-signup')?.addEventListener('click', async () => {
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.origin + '/pages/dashboard.html' }
+    options: { redirectTo: window.location.href.replace('index.html','').replace(/\/$/, '') + '/pages/dashboard.html' }
   });
   if (error) showError('signup-error', error.message);
 });
