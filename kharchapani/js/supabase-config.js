@@ -10,6 +10,19 @@ const SUPABASE_ANON_KEY = 'sb_publishable_KKSgWrAw_lKR4n0QpH9RYg_CQ7J6jSG'; // R
 const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const SUPABASE_URL = 'https://kqqwpvavmusyjvfzibbh.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_KKSgWrAw_lKR4n0QpH9RYg_CQ7J6jSG'; // paste your sb_publishable_... key
+
+const { createClient } = supabase;
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: 'implicit'
+  }
+});
+
 // ============================================
 // SUPABASE SQL SETUP - Run this in SQL Editor:
 // https://supabase.com/dashboard/project/kqfaatfbyhgeueptbyym/sql
