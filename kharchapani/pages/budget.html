@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KharchaPane — Budget Goals</title>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nepali-date-converter/dist/nepali-date-converter.umd.js"></script>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand"><span class="brand-icon-sm">₨</span><span class="brand-name">KharchaPane</span></div>
+      <button class="sidebar-toggle" id="sidebar-toggle">☰</button>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-avatar">H</div>
+      <div class="user-info"><div class="user-name" id="user-name">Loading...</div><div class="user-email" id="user-email"></div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="dashboard.html" class="nav-item"><span class="nav-icon">◉</span><span class="nav-label">Dashboard</span></a>
+      <a href="expenses.html" class="nav-item"><span class="nav-icon">↗</span><span class="nav-label">Expenses</span></a>
+      <a href="income.html" class="nav-item"><span class="nav-icon">↙</span><span class="nav-label">Income</span></a>
+      <div class="nav-section-label">Analysis</div>
+      <a href="reports.html" class="nav-item"><span class="nav-icon">📊</span><span class="nav-label">Reports</span></a>
+      <a href="budget.html" class="nav-item active"><span class="nav-icon">🎯</span><span class="nav-label">Budget Goals</span></a>
+      <div class="nav-section-label">Account</div>
+      <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">Profile</span></a>
+      <button class="nav-item nav-btn" id="logout-btn"><span class="nav-icon">⏏</span><span class="nav-label">Sign Out</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="nepali-date-display" id="today-nepali"></div>
+      <div class="ad-date-display" id="today-ad"></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
+        <div class="page-title">
+          <h1>Budget Goals</h1>
+          <p class="page-subtitle">Set monthly spending limits per category</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="month-nav">
+          <button class="month-btn" id="prev-month">‹</button>
+          <span class="month-label" id="month-label">Loading...</span>
+          <button class="month-btn" id="next-month">›</button>
+        </div>
+        <button class="btn-add-expense" id="add-budget-btn">+ Set Budget</button>
+      </div>
+    </header>
+
+    <div class="content-body">
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Monthly Budget vs Actual Spending</h3>
+          <p class="section-desc">Set limits for each expense category to stay on track</p>
+        </div>
+        <div id="budget-list" class="budget-list">
+          <div class="loading-state">Loading budgets...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Add Budget Modal -->
+<div class="modal-overlay hidden" id="budget-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3 id="budget-modal-title">Set Budget</h3>
+      <button class="modal-close" id="close-budget-modal">✕</button>
+    </div>
+    <form id="budget-form">
+      <input type="hidden" id="budget-id"/>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="budget-category" required></select>
+      </div>
+      <div class="form-group">
+        <label>Monthly Budget (₨)</label>
+        <input type="number" id="budget-amount" placeholder="0.00" min="0" step="100" required/>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cancel-budget">Cancel</button>
+        <button type="submit" class="btn-primary">Save Budget</button>
+      </div>
+      <div class="form-error" id="budget-error"></div>
+    </form>
+  </div>
+</div>
+
+<script src="../js/supabase-config.js"></script>
+<script src="../js/nepali-date.js"></script>
+<script src="../js/categories.js"></script>
+<script src="../js/app.js"></script>
+<script src="../js/budget.js"></script>
+</body>
+</html>
