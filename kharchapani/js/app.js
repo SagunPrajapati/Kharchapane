@@ -9,7 +9,8 @@ let currentBSYear, currentBSMonth;
 async function requireAuth() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
-    window.location.href = '../index.html';
+    const base = window.location.pathname.split('/pages/')[0];
+    window.location.href = base + '/index.html';
     return null;
   }
   currentUser = session.user;
@@ -52,7 +53,9 @@ async function initApp() {
   // Logout
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
     await supabaseClient.auth.signOut();
-    window.location.href = '../index.html';
+    // Works on GitHub Pages subdirectory or root
+    const base = window.location.pathname.split('/pages/')[0];
+    window.location.href = base + '/index.html';
   });
 
   // Sidebar toggle
