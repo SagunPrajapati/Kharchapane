@@ -4,11 +4,6 @@
 // IMPORTANT: Replace these with your actual Supabase credentials
 // Get them from: https://supabase.com/dashboard/project/kqfaatfbyhgeueptbyym/settings/api
 
-const SUPABASE_URL = 'https://kqqwpvavmusyjvfzibbh.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_KKSgWrAw_lKR4n0QpH9RYg_CQ7J6jSG'; // Replace this!
-
-const { createClient } = supabase;
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const SUPABASE_URL = 'https://kqqwpvavmusyjvfzibbh.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_KKSgWrAw_lKR4n0QpH9RYg_CQ7J6jSG'; // paste your sb_publishable_... key
