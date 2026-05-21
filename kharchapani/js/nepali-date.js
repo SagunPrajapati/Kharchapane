@@ -32,6 +32,7 @@ function getBSMonthDays(year, month) {
 // Safe NepaliDate wrapper
 function getNepaliDate(adDate) {
   try {
+    // Try different ways the library might expose itself
     if (typeof NepaliDate !== 'undefined') {
       const nd = new NepaliDate(adDate || new Date());
       return { year: nd.getYear(), month: nd.getMonth()+1, day: nd.getDate() };
@@ -45,14 +46,17 @@ function getNepaliDate(adDate) {
       return { year: nd.getYear(), month: nd.getMonth()+1, day: nd.getDate() };
     }
   } catch(e) { console.warn('NepaliDate lib error:', e.message); }
+  // Fallback: manual conversion
   return adToBS_manual(adDate || new Date());
 }
 
+// Manual AD to BS conversion fallback
 function adToBS_manual(adDate) {
   const d = new Date(adDate);
   const year = d.getFullYear();
   const month = d.getMonth()+1;
   const day = d.getDate();
+  // Approximate conversion: BS = AD + 56 years 8.5 months
   let bsYear = year + 56;
   let bsMonth = month + 9;
   let bsDay = day + 17;
@@ -72,16 +76,83 @@ function bsToAD_manual(bsYear, bsMonth, bsDay) {
   return new Date(adYear, adMonth-1, adDay);
 }
 
-function getCurrentNepaliDate() { return getNepaliDate(new Date()); }
-function adToBS(adDate) { return getNepaliDate(new Date(adDate)); }
-function bsToAD(year,month,day) { try { if(typeof NepaliDate!=='undefined'){const nd=new NepaliDate(year,month-1,day);return nd.toJsDate();} }catch(e){} return bsToAD_manual(year,month,day); }
-function formatBSDate(y,m,d){return `${d} ${NEPALI_MONTHS[m-1]} ${y}`;}
-function formatBSShort(y,m,d){return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;}
-function formatADDate(s){if(!s)return'';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});}
-function getBSMonthName(m){return NEPALI_MONTHS[m-1]||'';}
-function getBSYearRange(){const c=getCurrentNepaliDate();const y=[];for(let i=c.year-3;i<=c.year+1;i++)y.push(i);return y;}
-function populateYearSelect(el,sy){el.innerHTML=getBSYearRange().map(y=>`<option value="${y}" ${y===sy?'selected':''}>${y}</option>`).join('');}
-function populateMonthSelect(el,sm){el.innerHTML=NEPALI_MONTHS.map((n,i)=>`<option value="${i+1}" ${(i+1)===sm?'selected':''}>${String(i+1).padStart(2,'0')} - ${n}</option>`).join('');}
-function populateDaySelect(el,y,m,sd){const days=getBSMonthDays(y,m);el.innerHTML='';for(let d=1;d<=days;d++){const o=document.createElement('option');o.value=d;o.textContent=String(d).padStart(2,'0');if(d===sd)o.selected=true;el.appendChild(o);}}
-function getBSMonthADRange(y,m){const f=bsToAD(y,m,1);const ld=getBSMonthDays(y,m);const l=bsToAD(y,m,ld);const fmt=d=>{new Date(d);return new Date(d).toISOString().split('T')[0];};return{start:fmt(f),end:fmt(l)};}
-function getMonthDisplayString(y,m){return `${NEPALI_MONTHS[m-1]} ${y} BS`;}
+function getCurrentNepaliDate() {
+  return getNepaliDate(new Date());
+}
+
+function adToBS(adDate) {
+  return getNepaliDate(new Date(adDate));
+}
+
+function bsToAD(year, month, day) {
+  try {
+    if (typeof NepaliDate !== 'undefined') {
+      const nd = new NepaliDate(year, month-1, day);
+      return nd.toJsDate();
+    }
+  } catch(e) {}
+  return bsToAD_manual(year, month, day);
+}
+
+function formatBSDate(year, month, day) {
+  return `${day} ${NEPALI_MONTHS[month-1]} ${year}`;
+}
+
+function formatBSShort(year, month, day) {
+  return `${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')}/${year}`;
+}
+
+function formatADDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+
+function getBSMonthName(month) { return NEPALI_MONTHS[month-1] || ''; }
+
+function getBSYearRange() {
+  const current = getCurrentNepaliDate();
+  const years = [];
+  for (let y = current.year-3; y <= current.year+1; y++) years.push(y);
+  return years;
+}
+
+function populateYearSelect(selectEl, selectedYear) {
+  const years = getBSYearRange();
+  selectEl.innerHTML = years.map(y =>
+    `<option value="${y}" ${y===selectedYear?'selected':''}>${y}</option>`
+  ).join('');
+}
+
+function populateMonthSelect(selectEl, selectedMonth) {
+  selectEl.innerHTML = NEPALI_MONTHS.map((name, i) =>
+    `<option value="${i+1}" ${(i+1)===selectedMonth?'selected':''}>${String(i+1).padStart(2,'0')} - ${name}</option>`
+  ).join('');
+}
+
+function populateDaySelect(selectEl, year, month, selectedDay) {
+  const days = getBSMonthDays(year, month);
+  selectEl.innerHTML = '';
+  for (let d=1; d<=days; d++) {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = String(d).padStart(2,'0');
+    if (d === selectedDay) opt.selected = true;
+    selectEl.appendChild(opt);
+  }
+}
+
+function getBSMonthADRange(bsYear, bsMonth) {
+  const firstAD = bsToAD(bsYear, bsMonth, 1);
+  const lastDay = getBSMonthDays(bsYear, bsMonth);
+  const lastAD = bsToAD(bsYear, bsMonth, lastDay);
+  const fmt = d => {
+    const dd = new Date(d);
+    return `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`;
+  };
+  return { start: fmt(firstAD), end: fmt(lastAD) };
+}
+
+function getMonthDisplayString(year, month) {
+  return `${NEPALI_MONTHS[month-1]} ${year} BS`;
+}
