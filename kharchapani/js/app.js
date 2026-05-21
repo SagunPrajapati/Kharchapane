@@ -21,14 +21,17 @@ async function initApp() {
   const session = await requireAuth();
   if (!session) return null;
 
+  // Set current BS month using safe date function
   let today;
   try { today = getCurrentNepaliDate(); }
   catch(e) { today = { year: 2082, month: 2, day: 1 }; }
   currentBSYear = today.year;
   currentBSMonth = today.month;
 
+  // User info
   const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User';
   const email = session.user.email || '';
+
   const nameEl = document.getElementById('user-name');
   const emailEl = document.getElementById('user-email');
   const avatarEl = document.getElementById('user-avatar');
@@ -36,18 +39,23 @@ async function initApp() {
   if (emailEl) emailEl.textContent = email;
   if (avatarEl) avatarEl.textContent = name[0].toUpperCase();
 
+  // Date display
   const nepaliEl = document.getElementById('today-nepali');
   const adEl = document.getElementById('today-ad');
   if (nepaliEl) try { nepaliEl.textContent = `${today.day} ${getBSMonthName(today.month)} ${today.year} BS`; } catch(e){}
   if (adEl) adEl.textContent = new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 
+  // Logout
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
     await supabaseClient.auth.signOut();
     window.location.replace(getBasePath() + '/index.html');
   });
+
+  // Sidebar
   const sidebar = document.getElementById('sidebar');
   document.getElementById('sidebar-toggle')?.addEventListener('click', () => sidebar?.classList.toggle('collapsed'));
   document.getElementById('mobile-menu-btn')?.addEventListener('click', () => sidebar?.classList.toggle('mobile-open'));
+
   return session;
 }
 
@@ -92,7 +100,7 @@ async function updateTransaction(id, payload) {
   return { data, error };
 }
 
-arynr function deleteTransaction(id) {
+async function deleteTransaction(id) {
   const { error } = await supabaseClient.from('transactions')
     .delete().eq('id', id).eq('user_id', currentUser.id);
   return { error };
@@ -121,7 +129,7 @@ function openModal(id) { document.getElementById(id)?.classList.remove('hidden')
 function closeModal(id) { document.getElementById(id)?.classList.add('hidden'); }
 
 function showToast(msg, type='success') {
-  document.querySelector('’ºtoast')?.remove();
+  document.querySelector('.kp-toast')?.remove();
   const t = document.createElement('div');
   t.className = 'kp-toast';
   t.textContent = msg;
