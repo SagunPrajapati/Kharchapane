@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KharchaPane — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700&family=Tiro+Devanagari+Nepali&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nepali-date-converter/dist/nepali-date-converter.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <span class="brand-icon-sm">₨</span>
+        <span class="brand-name">KharchaPane</span>
+      </div>
+      <button class="sidebar-toggle" id="sidebar-toggle">☰</button>
+    </div>
+
+    <div class="sidebar-user" id="sidebar-user">
+      <div class="user-avatar" id="user-avatar">H</div>
+      <div class="user-info">
+        <div class="user-name" id="user-name">Loading...</div>
+        <div class="user-email" id="user-email"></div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="dashboard.html" class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">◉</span><span class="nav-label">Dashboard</span>
+      </a>
+      <a href="expenses.html" class="nav-item" data-page="expenses">
+        <span class="nav-icon">↗</span><span class="nav-label">Expenses</span>
+        <span class="nav-badge expense-badge" id="nav-expense-count"></span>
+      </a>
+      <a href="income.html" class="nav-item" data-page="income">
+        <span class="nav-icon">↙</span><span class="nav-label">Income</span>
+        <span class="nav-badge income-badge" id="nav-income-count"></span>
+      </a>
+
+      <div class="nav-section-label">Analysis</div>
+      <a href="reports.html" class="nav-item" data-page="reports">
+        <span class="nav-icon">📊</span><span class="nav-label">Reports</span>
+      </a>
+      <a href="budget.html" class="nav-item" data-page="budget">
+        <span class="nav-icon">🎯</span><span class="nav-label">Budget Goals</span>
+      </a>
+
+      <div class="nav-section-label">Account</div>
+      <a href="profile.html" class="nav-item" data-page="profile">
+        <span class="nav-icon">👤</span><span class="nav-label">Profile</span>
+      </a>
+      <button class="nav-item nav-btn" id="logout-btn">
+        <span class="nav-icon">⏏</span><span class="nav-label">Sign Out</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="nepali-date-display" id="today-nepali"></div>
+      <div class="ad-date-display" id="today-ad"></div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
+        <div class="page-title">
+          <h1>Dashboard</h1>
+          <p class="page-subtitle" id="current-month-display">Loading...</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="month-nav">
+          <button class="month-btn" id="prev-month">‹</button>
+          <span class="month-label" id="month-label">Loading...</span>
+          <button class="month-btn" id="next-month">›</button>
+        </div>
+        <button class="btn-add-expense" id="quick-add-btn">+ Add Entry</button>
+      </div>
+    </header>
+
+    <div class="content-body">
+      <!-- Summary Cards -->
+      <div class="summary-cards">
+        <div class="summary-card income-card">
+          <div class="card-icon">↙</div>
+          <div class="card-body">
+            <div class="card-label">Total Income</div>
+            <div class="card-amount" id="total-income">₨ 0</div>
+            <div class="card-sub" id="income-count">0 entries</div>
+          </div>
+        </div>
+        <div class="summary-card expense-card">
+          <div class="card-icon">↗</div>
+          <div class="card-body">
+            <div class="card-label">Total Expenses</div>
+            <div class="card-amount" id="total-expenses">₨ 0</div>
+            <div class="card-sub" id="expense-count">0 entries</div>
+          </div>
+        </div>
+        <div class="summary-card balance-card" id="balance-card">
+          <div class="card-icon">⚖</div>
+          <div class="card-body">
+            <div class="card-label">Net Balance</div>
+            <div class="card-amount" id="net-balance">₨ 0</div>
+            <div class="card-sub" id="balance-status">This month</div>
+          </div>
+        </div>
+        <div class="summary-card savings-card">
+          <div class="card-icon">🏦</div>
+          <div class="card-body">
+            <div class="card-label">Savings Rate</div>
+            <div class="card-amount" id="savings-rate">0%</div>
+            <div class="card-sub">of income saved</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>Expense Breakdown</h3>
+            <div class="chart-legend" id="expense-legend"></div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="expense-donut"></canvas>
+            <div class="chart-center-text" id="expense-center">
+              <span class="center-label">Expenses</span>
+              <span class="center-amount" id="expense-center-amount">₨0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>Income Sources</h3>
+            <div class="chart-legend" id="income-legend"></div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="income-donut"></canvas>
+            <div class="chart-center-text" id="income-center">
+              <span class="center-label">Income</span>
+              <span class="center-amount" id="income-center-amount">₨0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card trend-card">
+          <div class="chart-header">
+            <h3>Monthly Trend</h3>
+          </div>
+          <canvas id="trend-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Budget Progress -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Category Budget Progress</h3>
+          <a href="budget.html" class="section-link">Manage →</a>
+        </div>
+        <div id="budget-progress-list"></div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Recent Transactions</h3>
+          <a href="expenses.html" class="section-link">View All →</a>
+        </div>
+        <div class="transactions-list" id="recent-transactions">
+          <div class="loading-state">Loading transactions...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Quick Add Modal -->
+<div class="modal-overlay hidden" id="quick-add-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Entry</h3>
+      <button class="modal-close" id="close-modal">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-type="expense">Expense</button>
+      <button class="modal-tab" data-type="income">Income</button>
+    </div>
+    <form id="quick-add-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date (BS)</label>
+          <div class="date-input-group">
+            <select id="entry-year" class="date-select"></select>
+            <select id="entry-month" class="date-select"></select>
+            <select id="entry-day" class="date-select"></select>
+          </div>
+          <div class="date-preview" id="date-ad-preview"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label id="particular-label">Item / Expense Detail</label>
+        <input type="text" id="entry-particular" placeholder="e.g. Grocery, Rent, Fuel..." required/>
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="entry-category"></select>
+      </div>
+      <div class="form-group">
+        <label>Amount (₨)</label>
+        <input type="number" id="entry-amount" placeholder="0.00" min="0" step="0.01" required/>
+      </div>
+      <div class="form-group">
+        <label>Note (optional)</label>
+        <input type="text" id="entry-note" placeholder="Any extra detail..."/>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cancel-modal">Cancel</button>
+        <button type="submit" class="btn-primary" id="save-entry-btn">Save Entry</button>
+      </div>
+      <div class="form-error" id="modal-error"></div>
+    </form>
+  </div>
+</div>
+
+<script src="../js/supabase-config.js"></script>
+<script src="../js/nepali-date.js"></script>
+<script src="../js/categories.js"></script>
+<script src="../js/app.js"></script>
+<script src="../js/dashboard.js"></script>
+</body>
+</html>
